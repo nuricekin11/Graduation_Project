@@ -46,8 +46,8 @@ class ServerTask(threading.Thread):
         frontend = context.socket(zmq.ROUTER)
         frontend.bind('tcp://*:5570')
 
-        backend = context.socket(zmq.DEALER)
-        backend.bind('inproc://backend')
+#        backend = context.socket(zmq.DEALER)
+#        backend.bind('inproc://backend')
 
         workers = []
         
