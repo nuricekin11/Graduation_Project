@@ -7,6 +7,8 @@ Created on Thu Feb 20 09:43:05 2020
 """
 
 import zmq
+import time
+
 
 context = zmq.Context()
 def FileOpener(directory):
@@ -16,23 +18,36 @@ def FileOpener(directory):
     
 #  Socket to talk to server
 print("Connecting to hello world server…")
-socket = context.socket(zmq.REQ)
+socket = context.socket(zmq.DEALER)
 
 identity='11111515'
-socket.identity = identity.encode('ascii')
+socket.identity = identity.encode()
 socket.connect("tcp://localhost:5570")
 poll = zmq.Poller()
 poll.register(socket, zmq.POLLIN)
 reqs = 0
-while True:
-      reqs = reqs + 1
-      print('Req #%d sent..' % (reqs))
-      socket.send_string(u'request #%d' % (reqs))
-      for i in range(5):
-           sockets = dict(poll.poll(1000))
-           if socket in sockets:
-                 msg = socket.recv()
-                 tprint('Client %s received: %s' % (identity, msg))
+reqs = reqs + 1
+print('Req #%d sent..' % (reqs))
+socket.send_multipart([b'Hello'])
+
+msg = socket.recv_multipart()
+print(msg)
+
+
+socket.send_multipart([b'deneme'])
+
+msg = socket.recv_multipart()
+print(msg)
+data = FileOpener("/home/nuric/Desktop/Bitirme/HelloWorld")
+
+socket.send_multipart([data])
+sockets = dict(poll.poll())
+if socket in sockets:
+    msg = socket.recv_multipart()
+    print(msg) 
+file_return = socket.recv_multipart()
+print(file_return)    
+   
 #poll = zmq.Poller()
 #poll.register(socket,zmq.POLLIN)
 #socket.send_string(identity)
