@@ -49,73 +49,50 @@ def tprint(msg):
 #    """ServerTask"""
 #    def __init__(self):
 #        threading.Thread.__init__ (self)
-def IdentProcess(ident):
+def IdentProcessTV(ident):
 #        ident=ident.decode()
-        print(type(ident))
+        
         com_type_number=ident.decode()[:4]
         ident=ident.decode()[4:]
-        print(com_type_number,ident)
+        
         if com_type_number == CommID.TV_TYPE_COMM:
-            return RequestType.TV,ident
-        if com_type_number == CommID.PC_TYPE_COMM:
-            return RequestType.PC,ident    
+            return RequestType.TV
+        else:
+            return 0
 def worker_thread(Communication_ID):
 
-        
-        print(type(Communication_ID))
-        tprint('Worker received %s from ' % (Communication_ID))
-        
-        DeviceType,ID=IdentProcess(Communication_ID)
-        if DeviceType == RequestType.PC:
-            
-            
-               worker.send_multipart([Communication_ID,Messages.PC_Definition.encode()])
-               print("message sent")
-               Identity,target=worker.recv_multipart()
-               print(target)
-               tprint('Worker received %s ' % (target))
-
-               worker.send_multipart([Communication_ID,Messages.Ready_File.encode()])
-               Identity, file=worker.recv_multipart()
                
-               tprint('Worker received %d byte ' % (len(file)))
-               worker.send_multipart([Communication_ID,Messages.OK.encode()])
-               backend = context.socket(zmq.REQ)
-               address = 'ipc://' + target
-               backend.connect(address)
-               backend.send_multipart([file])
-               backend.close()
 
-               
-        if DeviceType == RequestType.TV:
-                print("Communication_ID: ")
-                print(Communication_ID)
+
+                ID = Communication_ID.decode()[4:]
 #                Ident, recv_msg = worker.recv_multipart()
 #                print("recv_msg: ")
 #                print(recv_msg)
 #                print("Ident: ")
 #                print(Ident)
-                time.sleep(0.5)
                 worker.send_multipart([Communication_ID, Messages.TV_Definition.encode()])
                 Ident,msg= worker.recv_multipart()
-                print(Ident,msg)
+                
                 if msg.decode() == Messages.Ready_File:
+                    print("Ready File Received")
                     backend = context.socket(zmq.ROUTER)
-                    address = 'ipc://' + 'deneme'
-                    print(address)
+                    Backend_Socket_Name = ID[:-1]
+                    print("IPC socket name is: " + Backend_Socket_Name)
+                    address = 'ipc://' + Backend_Socket_Name
                     backend.bind(address)
-                    print("socket opened")
+                    print("Socket created")
                     file = backend.recv_multipart()
-                    print("file recevied")
-                    
-                    
+                    print("Program recevied")
                     worker.send_multipart([Communication_ID,file[1]])
+                    print("Program sent to TV")
                     ident, file_return = worker.recv_multipart()
-                    print('ident: ')
-                    print(ident)
-                    print('file_Return: ')
-                    print(file_return)
+                    print('Program output at TV:')
+                    print(file_return.decode())
                     backend.send_multipart([file[0],file_return])
+                    print('Output sent to client PC')
+                    
+                else:
+                    print("Not Ready File Received")
                     
 
                 
@@ -132,16 +109,18 @@ def main():
         i+=1
         print(i)
         ident, msg = worker.recv_multipart()
-        print("Ident: ")
-        print(ident)
-        print(msg)
-        tprint('Worker received %s from' % ident)
+        tprint('Worker received %s from %s' %(msg.decode(), ident.decode()))
         
         """main function"""
         if ident:
-            server = threading.Thread(target = worker_thread,args=(ident,))
-            server.start()
-            server.join()
+            if IdentProcessTV(ident):
+                print("TV connected...")
+                server = threading.Thread(target = worker_thread,args=(ident,))
+                server.start()
+                server.join()
+            else:
+                ("Other devices connected...")
+                continue
             
             
 #            continue
