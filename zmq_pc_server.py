@@ -11,6 +11,9 @@ import sys
 import threading
 from enum import Enum
 import time
+import zmq.auth
+from zmq.auth.thread import ThreadAuthenticator
+import os
 
 
 
@@ -81,11 +84,23 @@ def worker_thread(msg):
             
 
 
-                
+base_dir = os.path.dirname(__file__)
+keys_dir = os.path.join(base_dir, 'certificates')
+public_keys_dir = os.path.join(base_dir, 'public_keys')
+secret_keys_dir = os.path.join(base_dir, 'private_keys')                
                     
-context = zmq.Context()
+context = zmq.Context().instance()
+auth = ThreadAuthenticator(context)
+auth.start()
+auth.allow('127.0.0.1')
+auth.configure_curve(domain='*', location=public_keys_dir)
 worker = context.socket(zmq.ROUTER)
 worker.setsockopt(zmq.ROUTER_MANDATORY,1)
+server_secret_file = os.path.join(secret_keys_dir, "server.key_secret")
+server_public, server_secret = zmq.auth.load_certificate(server_secret_file)
+worker.curve_secretkey = server_secret
+worker.curve_publickey = server_public
+worker.curve_server = True 
 worker.bind('tcp://*:5570')  
        
 
