@@ -99,8 +99,19 @@ int main()
 {   Messages Msg;
     Header Hdr;
     FILE * pFile;
+    char public_key [41] = "(}EAs+&eUb(jhXS5R!wX*OU3w&j!I/XED$mXhh9p";
+    char secret_key [41] ="]LnuTub7Wr1.vL}!U)#{]s&}7%dedh1@6?Z.1m0:";
+    char server_key[41] =  "IpT-c3x72Y2ff%[J+b#xoc9dsZN@G?b6JmF&xJe9";
+//    int rc = zmq_curve_keypair(public_key, secret_key);
+
+    cout<<endl<<"public_key: "<<public_key;
+    cout<<endl<<"private_key: "<<secret_key;
+//    printf("Output: %d",rc);
     zmq::context_t context(1);
     zmq::socket_t worker(context, ZMQ_DEALER);
+    worker.setsockopt(ZMQ_CURVE_PUBLICKEY,public_key);
+    worker.setsockopt(ZMQ_CURVE_SECRETKEY,secret_key);
+    worker.setsockopt(ZMQ_CURVE_SERVERKEY,server_key);
     char mac[32]={0};
     getMacAddress(mac);
     zmq::message_t TV_Definiton;
@@ -115,7 +126,7 @@ int main()
     strcpy(ID,Identity.c_str());
     worker.setsockopt(ZMQ_IDENTITY,ID,strlen(ID));
     cout<<endl<< "Communication started";
-    worker.connect("tcp://10.134.154.65:5571");
+    worker.connect("tcp://10.12.0.43:5571");
     cout<<endl<< "Communication started";
     memcpy( Hello.data(),"HELLO", 5);
 //    string rpl3 = string(static_cast<char*>(Hello.data()), Hello.size());
