@@ -125,21 +125,71 @@ int main()
     char ID[Identity.length()+1];
     strcpy(ID,Identity.c_str());
     worker.setsockopt(ZMQ_IDENTITY,ID,strlen(ID));
-    cout<<endl<< "Communication started";
-    worker.connect("tcp://10.12.0.43:5571");
+    worker.setsockopt(ZMQ_RCVTIMEO,5000);
+    worker.setsockopt(ZMQ_SNDTIMEO,5000);
+//    try{
+    worker.connect("tcp://192.168.1.103:5571");
     cout<<endl<< "Communication started";
     memcpy( Hello.data(),"HELLO", 5);
 //    string rpl3 = string(static_cast<char*>(Hello.data()), Hello.size());
     cout<<endl<<"Hello: ";
-    worker.send(Hello);
-    worker.recv(&TV_Definiton);
-    string answer = string(static_cast<char*>(TV_Definiton.data()), TV_Definiton.size());
-    cout<<endl<< answer;
+    bool rc = worker.send(Hello);
+    cout<<endl<<"Rc: "<<rc;
+    if(rc == 0)
+    {
+        cout<<endl<<"Can not send server";
+        return 0;
+    }
+
+
+//    }
+
+//    catch(zmq::error_t& e)
+//    {
+//    cout<<"Can not connect the server...";
+//    return 0;
+
+
+//    }
+//    try{
+
+        rc = worker.recv(&TV_Definiton);
+        if(rc == 0)
+        {
+        cout<<endl<<"No definition from server";
+        return 0;
+
+        }
+        string answer = string(static_cast<char*>(TV_Definiton.data()), TV_Definiton.size());
+        cout<<endl<< answer;
+
+//    }
+//    catch(zmq::error_t& e)
+//    {
+//    cout<<"No definition data";
+//    return 0;
+
+//    }
+//    worker.setsockopt(ZMQ_RCVTIMEO,-1);
+//    worker.setsockopt(ZMQ_SNDTIMEO,-1);
 //   cout <<endl<<Converter(TV_Definiton);
     memcpy( Ready_File.data(), "Ready File",10);
-    worker.send(Ready_File);
+    rc =worker.send(Ready_File);
+    if(rc == 0)
+    {
+    cout<<endl<<"Can not send ready file to server";
+    return 0;
+
+    }
+
     cout<<endl<<"File waiting...";
-    worker.recv(&File);
+    rc = worker.recv(&File);
+    if(rc == 0)
+    {
+    cout<<endl<<"No file from server...";
+    return 0;
+
+    }
     cout<<endl<<"File received";
 //    char *buffer = static_cast<char*>(File.data());
 //    string file_string = string(static_cast<char*>(File.data()), File.size());
@@ -148,16 +198,15 @@ int main()
 //    strcpy(file_info,file_string.c_str());
 //    cout<< endl<<"Char Deneme: "<<file_info;
 //    cout <<endl << Converter(File);
-    chdir("/applications/deneme/");
+
 //    cout <<endl<<"Buffer: "<<*buffer;
 //    cout<<endl<<"Buffer size: "<< sizeof(file_info);
+    chdir("/applications/deneme/");
     pFile = fopen("targetfile.bin","w+");
-
     fwrite(File.data(),8,File.size(),pFile);
     fclose(pFile);
     chdir("/applications/deneme/");
     system("chmod +x targetfile.bin");
-
     string fileReturn = exec("/applications/deneme/targetfile.bin");
     cout<<endl<< "FileReturn: "<<fileReturn;
     zmq::message_t File_Return (fileReturn.length()+1);
@@ -169,7 +218,13 @@ int main()
 //    cout<<endl<<"File Data: "<<File_Return.data();
 //    cout<<endl<<"File Return Data:"<<File_Return_deneme;
 //    cout<<endl<<"fileRe Size: "<<strlen(fileRe);
-    worker.send(File_Return);
+    rc = worker.send(File_Return);
+    if(rc == 0)
+    {
+    cout<<endl<<"Can not send output of program";
+    return 0;
+
+    }
 
 
 

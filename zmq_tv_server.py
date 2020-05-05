@@ -45,7 +45,25 @@ def tprint(msg):
     sys.stdout.write(msg + '\n')
     sys.stdout.flush()
     
-    
+def ErrorController():
+    if Ready_File_Error == 1:
+        tprint("Server did not receive Ready File message")
+        return -1
+    elif File_TV_Error == 1:
+        tprint("Server did not receive program")
+        return -1
+    elif Backend_Bind_Error == 1:
+        tprint("Can not bind backend socket ")
+        return -1
+    elif File_Return_Error == 1:
+        tprint("Server did not receive program output")
+        return -1
+    else:
+        return 0      
+Ready_File_Error = 0
+File_TV_Error = 0
+Backend_Bind_Error = 0
+File_Return_Error = 0        
     
 #class ServerTask(threading.Thread):
 #    """ServerTask"""
@@ -61,40 +79,58 @@ def IdentProcessTV(ident):
             return RequestType.TV
         else:
             return 0
-def worker_thread(Communication_ID):
-
-               
-
-
-                ID = Communication_ID.decode()[4:]
-#                Ident, recv_msg = worker.recv_multipart()
-#                print("recv_msg: ")
-#                print(recv_msg)
-#                print("Ident: ")
-#                print(Ident)
-                worker.send_multipart([Communication_ID, Messages.TV_Definition.encode()])
-                Ident,msg= worker.recv_multipart()
-                
-                if msg.decode() == Messages.Ready_File:
-                    print("Ready File Received")
-                    backend = context.socket(zmq.ROUTER)
-                    Backend_Socket_Name = ID[:-1]
-                    print("IPC socket name is: " + Backend_Socket_Name)
-                    address = 'ipc://' + Backend_Socket_Name
-                    backend.bind(address)
-                    print("Socket created")
-                    file = backend.recv_multipart()
-                    print("Program recevied")
-                    worker.send_multipart([Communication_ID,file[1]])
-                    print("Program sent to TV")
-                    ident, file_return = worker.recv_multipart()
-                    print('Program output at TV:')
-                    
-                    backend.send_multipart([file[0],file_return])
-                    print('Output sent to client PC')
-                    
-                else:
-                    print("Not Ready File Received")
+def workerThread(Communication_ID):
+    worker_func(Communication_ID)
+    worker.RCVTIMEO = -1
+    worker.SNDTIMEO = -1        
+def worker_func(Communication_ID):
+    global File_TV_Error
+    global Ready_File_Error
+    global Backend_Bind_Error
+    global File_Return_Error               
+    ID = Communication_ID.decode()[4:]
+    worker.send_multipart([Communication_ID, Messages.TV_Definition.encode()])
+    try:
+        Ident,msg= worker.recv_multipart()
+        tprint("Ready File Received")
+    except:
+        Ready_File_Error = 1
+    if ErrorController():
+        return 0    
+    backend = context.socket(zmq.ROUTER)
+    backend.RCVTIMEO = -1
+    backend.SNDTIMEO = -1 
+    Backend_Socket_Name = ID[:-1]
+    tprint("IPC socket name is: " + Backend_Socket_Name)
+    address = 'ipc://' + Backend_Socket_Name
+    try:
+        backend.bind(address)
+        tprint("Socket created")
+    except:
+        Backend_Bind_Error = 1
+    if ErrorController():
+        return 0      
+    try:    
+        file = backend.recv_multipart()
+        tprint("Program recevied")
+    except:
+        File_TV_Error = 1
+    if ErrorController():
+        return 0      
+        
+    worker.send_multipart([Communication_ID,file[1]])
+    tprint("Program sent to TV")
+    try:
+        ident, file_return = worker.recv_multipart()
+        tprint('Program output at TV:')
+        tprint(file_return)
+    except:
+        File_Return_Error = 1
+    if ErrorController():
+        return 0     
+    backend.send_multipart([file[0],file_return])
+    print('Output sent to client PC')
+    return 1
                     
 
 base_dir = os.path.dirname(__file__)
@@ -105,7 +141,6 @@ secret_keys_dir = os.path.join(base_dir, 'private_keys')
 context = zmq.Context().instance()
 auth = ThreadAuthenticator(context)
 auth.start()
-auth.allow("10.12.0.14")
 auth.configure_curve(domain='*', location=public_keys_dir)
 worker = context.socket(zmq.ROUTER)
 server_secret_file = os.path.join(secret_keys_dir, "server.key_secret")
@@ -127,9 +162,11 @@ def main():
         
         """main function"""
         if ident:
+            worker.RCVTIMEO = 5000
+            worker.SNDTIMEO = 5000
             if IdentProcessTV(ident):
                 print("TV connected...")
-                server = threading.Thread(target = worker_thread,args=(ident,))
+                server = threading.Thread(target = workerThread,args=(ident,))
                 server.start()
                 server.join()
             else:
