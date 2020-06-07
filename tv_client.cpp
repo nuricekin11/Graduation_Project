@@ -18,6 +18,8 @@
 #include <memory>
 #include <stdexcept>
 #include <array>
+#include <fstream>
+
 
 using namespace std;
 class Messages {
@@ -116,6 +118,7 @@ int main()
     getMacAddress(mac);
     zmq::message_t TV_Definiton;
     zmq::message_t File;
+    zmq::message_t Chunk_Number;
     zmq::message_t Hello (5);
     zmq::message_t Ready_File (10);
 
@@ -128,7 +131,7 @@ int main()
     worker.setsockopt(ZMQ_RCVTIMEO,5000);
     worker.setsockopt(ZMQ_SNDTIMEO,5000);
 //    try{
-    worker.connect("tcp://192.168.1.103:5571");
+    worker.connect("tcp://192.168.1.101:5571");
     cout<<endl<< "Communication started";
     memcpy( Hello.data(),"HELLO", 5);
 //    string rpl3 = string(static_cast<char*>(Hello.data()), Hello.size());
@@ -181,16 +184,43 @@ int main()
     return 0;
 
     }
-
-    cout<<endl<<"File waiting...";
-    rc = worker.recv(&File);
-    if(rc == 0)
+    worker.setsockopt(ZMQ_RCVTIMEO,-1);
+    worker.setsockopt(ZMQ_SNDTIMEO,-1);
+    rc = worker.recv(&Chunk_Number);
+    if (rc == 0)
     {
-    cout<<endl<<"No file from server...";
-    return 0;
+     cout<<endl<<"Can not receive chunk number...";
+     return 0;
 
     }
-    cout<<endl<<"File received";
+    string Chunk_Number_Str = string(static_cast<char*>(Chunk_Number.data()), Chunk_Number.size());
+    int Chunk_Number_Int = stoi(Chunk_Number_Str);
+    cout<<endl<<"Chunk Number: ";
+    cout<<endl<<Chunk_Number_Int;
+	std::ofstream ofs;
+	ofs.open("/applications/deneme/targetfile.bin", std::ofstream::out | std::ofstream::trunc);
+	ofs.close();
+	ofstream fout;
+	
+    fout.open("/applications/deneme/targetfile.bin",ios::app | ios::binary );
+    for(int i = 0;i< Chunk_Number_Int; i++)
+    {
+        cout<<endl<<"File waiting...";
+        rc = worker.recv(&File);
+        if(rc == 0)
+        {
+        cout<<endl<<"No file from server...";
+        return 0;
+
+        }
+		char *buffer = static_cast<char*>(File.data());
+		cout<<"File size ="<<File.size()<<endl;
+		fout.write(buffer,File.size());
+	    cout<<endl<<"File  chunk"<< i+1<<"received";
+
+    }
+	fout.close();
+
 //    char *buffer = static_cast<char*>(File.data());
 //    string file_string = string(static_cast<char*>(File.data()), File.size());
 //    cout<<endl<< "File Data: "<<file_string;
@@ -201,10 +231,10 @@ int main()
 
 //    cout <<endl<<"Buffer: "<<*buffer;
 //    cout<<endl<<"Buffer size: "<< sizeof(file_info);
-    chdir("/applications/deneme/");
-    pFile = fopen("targetfile.bin","w+");
-    fwrite(File.data(),8,File.size(),pFile);
-    fclose(pFile);
+    // chdir("/applications/deneme/");
+    // pFile = fopen("targetfile.bin","w+");
+    // fwrite(File.data(),8,File.size(),pFile);
+    // fclose(pFile);
     chdir("/applications/deneme/");
     system("chmod +x targetfile.bin");
     string fileReturn = exec("/applications/deneme/targetfile.bin");
