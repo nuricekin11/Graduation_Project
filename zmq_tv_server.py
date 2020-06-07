@@ -58,12 +58,16 @@ def ErrorController():
     elif File_Return_Error == 1:
         tprint("Server did not receive program output")
         return -1
+    elif Chunk_Number_Error == 1:
+        tprint("Server cant receive chunk number")
+        return -1    
     else:
         return 0      
 Ready_File_Error = 0
 File_TV_Error = 0
 Backend_Bind_Error = 0
-File_Return_Error = 0        
+File_Return_Error = 0
+Chunk_Number_Error = 0        
     
 #class ServerTask(threading.Thread):
 #    """ServerTask"""
@@ -87,7 +91,8 @@ def worker_func(Communication_ID):
     global File_TV_Error
     global Ready_File_Error
     global Backend_Bind_Error
-    global File_Return_Error               
+    global File_Return_Error 
+    global Chunk_Number_Error              
     ID = Communication_ID.decode()[4:]
     worker.send_multipart([Communication_ID, Messages.TV_Definition.encode()])
     try:
@@ -96,7 +101,7 @@ def worker_func(Communication_ID):
     except:
         Ready_File_Error = 1
     if ErrorController():
-        return 0    
+        return 0 
     backend = context.socket(zmq.ROUTER)
     backend.RCVTIMEO = -1
     backend.SNDTIMEO = -1 
@@ -109,26 +114,40 @@ def worker_func(Communication_ID):
     except:
         Backend_Bind_Error = 1
     if ErrorController():
-        return 0      
-    try:    
-        file = backend.recv_multipart()
-        tprint("Program recevied")
-    except:
-        File_TV_Error = 1
-    if ErrorController():
-        return 0      
-        
-    worker.send_multipart([Communication_ID,file[1]])
-    tprint("Program sent to TV")
+        return 0
     try:
-        ident, file_return = worker.recv_multipart()
-        tprint('Program output at TV:')
-        tprint(file_return)
+        Identity, chunk_number_byte = backend.recv_multipart()
+        print(chunk_number_byte)
+        chunk_number = int(chunk_number_byte.decode())
+        worker.send_multipart([Communication_ID,chunk_number_byte])
     except:
-        File_Return_Error = 1
+        Chunk_Number_Error = 1
+    if ErrorController():
+        return 0
+    backend.send_multipart([Identity,Messages.OK.encode()])
+    
+    for i in range(chunk_number):
+        try:    
+            Identity_Backend,file = backend.recv_multipart()
+            tprint("%d byte received" %(len(file)))
+            tprint("Chunk number %d" %(i))
+            worker.send_multipart([Communication_ID,file])
+            tprint("Program sent to TV")
+        except:
+            File_TV_Error = 1
+        if ErrorController():
+            return 0      
+        
+
+#    try:
+    ident, file_return = worker.recv_multipart()
+    tprint('Program output at TV:')
+    print(file_return)
+##    except:
+#        File_Return_Error = 1
     if ErrorController():
         return 0     
-    backend.send_multipart([file[0],file_return])
+    backend.send_multipart([Identity,file_return])
     print('Output sent to client PC')
     return 1
                     
@@ -162,8 +181,8 @@ def main():
         
         """main function"""
         if ident:
-            worker.RCVTIMEO = 5000
-            worker.SNDTIMEO = 5000
+            worker.RCVTIMEO = 15000
+            worker.SNDTIMEO = 15000
             if IdentProcessTV(ident):
                 print("TV connected...")
                 server = threading.Thread(target = workerThread,args=(ident,))

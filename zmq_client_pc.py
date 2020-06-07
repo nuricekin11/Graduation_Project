@@ -11,14 +11,21 @@ import time
 import os 
 import zmq.auth
 from zmq.auth.thread import ThreadAuthenticator
-
-def FileOpener(directory):
+from pathlib import Path
+CHUNK_SIZE = 1000000
+def getChunkNumber(file_size):
+    chunk_number = int(file_size/ CHUNK_SIZE) +1
+    return chunk_number    
+def fileSize(directory):
+    size = Path(directory).stat().st_size
+    return size
+def fileOpener(directory):
     try:
         file=open(directory,"rb")
-        data=file.read()
+        
     except:
         return 0
-    return data
+    return file
 def ErrorController():
     if PC_Def_Error == 1:
         return -1
@@ -52,8 +59,8 @@ print("Connecting to server…")
 socket.curve_serverkey = server_public
 identity='11111515'
 socket.identity = identity.encode()
-socket.RCVTIMEO = 3000
-socket.SNDTIMEO = 3000
+socket.RCVTIMEO = 15000
+socket.SNDTIMEO = 15000
 #socket.connect("tcp://3.125.40.81:5570")
 socket.connect("tcp://localhost:5570")
 poll = zmq.Poller()
@@ -61,7 +68,7 @@ poll.register(socket, zmq.POLLIN)
 #target = [b'00:11:e1:63:c9:e2\n']
 #file = "/home/nuric/Desktop/Bitirme/HelloWorld"
 
-def sendFile(target,file):
+def sendFile(target,file_dir):
     global PC_Def_Error
     global Ready_File_Error
     global OK_Error
@@ -91,12 +98,33 @@ def sendFile(target,file):
         print("Server is not ready for file...")
     if ErrorController():
         return 0
-    data = FileOpener(file)
-    if not data:
+    sizeofFile = 0
+    try:
+        sizeofFile = fileSize(file_dir)
+        print(sizeofFile)
+    except:
         print("Directory not found. Please enter valid directory")
         return 0
-    
-    socket.send_multipart([data])
+    if sizeofFile:
+        chunk_number = getChunkNumber(sizeofFile)
+        socket.send_multipart([str(chunk_number).encode()])
+        file = fileOpener(file_dir)
+        for i in range (chunk_number):
+            file.seek(i*CHUNK_SIZE)
+            Chunk_Data = file.read(CHUNK_SIZE)
+            socket.send_multipart([Chunk_Data])
+            print("Chunk %d sent..." %(i))
+        
+        
+    else:
+        print("Empty file...")
+        return 0
+#    data = fileOpener(file)
+#    if not data:
+#        print("Directory not found. Please enter valid directory")
+#        return 0
+#    
+#    socket.send_multipart([data])
 #    sockets = dict(poll.poll())
 #    if socket in sockets:
     try:
@@ -123,7 +151,7 @@ def main():
     while 1:
         target = input("Enter your target TV: ")
         target = target.encode()
-        file = input("Enter your file: ")
-        sendFile(target,file)
+        file_dir = input("Enter your file: ")
+        sendFile(target,file_dir)
 if __name__ == "__main__":
     main()
