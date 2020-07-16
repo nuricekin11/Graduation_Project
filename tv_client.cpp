@@ -131,7 +131,7 @@ int main()
     worker.setsockopt(ZMQ_RCVTIMEO,5000);
     worker.setsockopt(ZMQ_SNDTIMEO,5000);
 //    try{
-    worker.connect("tcp://192.168.1.101:5571");
+    worker.connect("tcp://192.168.0.22:5571");
     cout<<endl<< "Communication started";
     memcpy( Hello.data(),"HELLO", 5);
 //    string rpl3 = string(static_cast<char*>(Hello.data()), Hello.size());
