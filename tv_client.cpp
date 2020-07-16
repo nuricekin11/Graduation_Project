@@ -85,15 +85,6 @@ void getMacAddress(char * uc_Mac)
 
 
 
-//string Converter(zmq::message_t reply)
-
-//{
-
-//   string rpl = string(static_cast<char*>(reply.data()), reply.size());
-//   return rpl;
-
-
-//}
 
 
 
@@ -130,11 +121,11 @@ int main()
     worker.setsockopt(ZMQ_IDENTITY,ID,strlen(ID));
     worker.setsockopt(ZMQ_RCVTIMEO,5000);
     worker.setsockopt(ZMQ_SNDTIMEO,5000);
-//    try{
+
     worker.connect("tcp://192.168.0.22:5571");
     cout<<endl<< "Communication started";
     memcpy( Hello.data(),"HELLO", 5);
-//    string rpl3 = string(static_cast<char*>(Hello.data()), Hello.size());
+
     cout<<endl<<"Hello: ";
     bool rc = worker.send(Hello);
     cout<<endl<<"Rc: "<<rc;
@@ -145,16 +136,7 @@ int main()
     }
 
 
-//    }
 
-//    catch(zmq::error_t& e)
-//    {
-//    cout<<"Can not connect the server...";
-//    return 0;
-
-
-//    }
-//    try{
 
         rc = worker.recv(&TV_Definiton);
         if(rc == 0)
@@ -166,16 +148,7 @@ int main()
         string answer = string(static_cast<char*>(TV_Definiton.data()), TV_Definiton.size());
         cout<<endl<< answer;
 
-//    }
-//    catch(zmq::error_t& e)
-//    {
-//    cout<<"No definition data";
-//    return 0;
 
-//    }
-//    worker.setsockopt(ZMQ_RCVTIMEO,-1);
-//    worker.setsockopt(ZMQ_SNDTIMEO,-1);
-//   cout <<endl<<Converter(TV_Definiton);
     memcpy( Ready_File.data(), "Ready File",10);
     rc =worker.send(Ready_File);
     if(rc == 0)
@@ -221,20 +194,7 @@ int main()
     }
 	fout.close();
 
-//    char *buffer = static_cast<char*>(File.data());
-//    string file_string = string(static_cast<char*>(File.data()), File.size());
-//    cout<<endl<< "File Data: "<<file_string;
-//    char file_info[file_string.length()+1];
-//    strcpy(file_info,file_string.c_str());
-//    cout<< endl<<"Char Deneme: "<<file_info;
-//    cout <<endl << Converter(File);
 
-//    cout <<endl<<"Buffer: "<<*buffer;
-//    cout<<endl<<"Buffer size: "<< sizeof(file_info);
-    // chdir("/applications/deneme/");
-    // pFile = fopen("targetfile.bin","w+");
-    // fwrite(File.data(),8,File.size(),pFile);
-    // fclose(pFile);
     chdir("/applications/deneme/");
     system("chmod +x targetfile.bin");
     string fileReturn = exec("/applications/deneme/targetfile.bin");
@@ -244,10 +204,7 @@ int main()
     strcpy(fileRe,fileReturn.c_str());
     cout<<endl<<"File return char: "<<fileRe;
     memcpy(File_Return.data(),fileReturn.data(), fileReturn.size());
-//    string File_Return_deneme = string(static_cast<char*>(File_Return.data()), File_Return.size());
-//    cout<<endl<<"File Data: "<<File_Return.data();
-//    cout<<endl<<"File Return Data:"<<File_Return_deneme;
-//    cout<<endl<<"fileRe Size: "<<strlen(fileRe);
+
     rc = worker.send(File_Return);
     if(rc == 0)
     {
